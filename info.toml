@@ -1,0 +1,6 @@
+name = "Genesis Trackmania"
+author = "Genesis Tournament"
+version = 1
+site = ""
+description = "Envoie automatiquement ton meilleur temps Contre-la-montre vers Genesis Tournament."
+dependencies = ["MLFeedRaceData"]
