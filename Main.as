@@ -130,6 +130,17 @@ string g_cpMapUid = "";
 bool g_cpArmed = false;
 int g_lastCpCount = -1;
 
+// Signale "une nouvelle tentative vient de commencer" au salon CTM actif (compteur
+// de runs, cote serveur - cf. server/trackmania.js route /attempt). Best-effort et
+// silencieux, comme TryAmbient() : ne touche jamais g_status.
+void SendAttemptStarted() {
+  if (Setting_Token == "") return;
+  Json::Value req = Json::Object();
+  req["token"] = Setting_Token;
+  auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/attempt", Json::Write(req), "application/json");
+  while (!r.Finished()) yield();
+}
+
 void TryIngest() {
   if (Setting_Token == "") return;
   auto raceData = MLFeed::GetRaceData_V4();
@@ -145,8 +156,16 @@ void TryIngest() {
   int cp = me.CpCount;
   int toFinish = int(raceData.CPsToFinish);
   bool justFinished = g_cpArmed && g_lastCpCount < toFinish && cp >= toFinish;
+  // "nouvelle tentative" (compteur de runs, 2026-09-05) : CpCount retombe a 0 -
+  // couvre a la fois un redemarrage complet ET le tout premier passage a 0 juste
+  // apres un changement de piste (g_lastCpCount initialise a -1 ci-dessus).
+  // Approximatif par nature : compte aussi une "tentative" si le joueur charge la
+  // piste sans jamais rouler - assume, signale a Thomas des la conception (aucun
+  // signal MLFeed "abandon" n'existe).
+  bool justStarted = (cp == 0 && g_lastCpCount != 0);
   if (cp < toFinish) g_cpArmed = true;
   g_lastCpCount = cp;
+  if (justStarted) SendAttemptStarted();
   if (!justFinished) return;
 
   // CurrentRaceTime : le chrono de course s'arrete au franchissement de la ligne
