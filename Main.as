@@ -7,6 +7,9 @@
 //   3. LocalUser.WebServicesUserId peut être vide en solo local pur
 //   4. syntaxe exacte Json::Object/Json::Write/Json::Parse
 //   5. syntaxe exacte de déclaration de dépendance dans info.toml
+//   6. schéma exact d'info.toml lui-même - certaines docs OpenPlanet montrent des tables
+//      [meta]/[script] plutôt que des clés à plat, et "version" pourrait devoir être une
+//      chaîne plutôt qu'un entier (non vérifié ici, à confirmer au premier essai réel)
 
 string LocalAccountId() {
   auto net = GetApp().Network;
@@ -29,6 +32,16 @@ string CurrentMapUid() {
 
 string g_status = "Inactif.";
 
+// Retire un antislash final de l'adresse collee par le joueur : sans ca, une URL collee
+// avec un "/" en trop (copier-coller depuis un navigateur, par ex.) produit un double
+// slash qui ne correspond plus a la route exacte du serveur. SubStr : API AngelScript
+// non verifiee ici (incertitude non listee en tete de fichier, mais du meme ordre).
+string ServerUrlTrimmed() {
+  string u = Setting_ServerUrl;
+  if (u.Length > 0 && u.SubStr(u.Length - 1, 1) == "/") return u.SubStr(0, u.Length - 1);
+  return u;
+}
+
 void TryPair() {
   if (Setting_Token != "" || Setting_ServerUrl == "" || Setting_PairCode == "") return;
   string accId = LocalAccountId();
@@ -39,7 +52,7 @@ void TryPair() {
   req["accountId"] = accId;
   req["name"] = LocalName();
 
-  auto r = Net::HttpPost(Setting_ServerUrl + "/api/trackmania/pair", Json::Write(req), "application/json");
+  auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/pair", Json::Write(req), "application/json");
   while (!r.Finished()) yield();
 
   if (r.ResponseCode() != 200) { g_status = "Appairage refuse (" + r.ResponseCode() + ")"; return; }
@@ -71,7 +84,7 @@ void TryIngest() {
   req["mapUid"] = mapUid;
   req["timeMs"] = int(best * 1000.0);
 
-  auto r = Net::HttpPost(Setting_ServerUrl + "/api/trackmania/ingest", Json::Write(req), "application/json");
+  auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/ingest", Json::Write(req), "application/json");
   while (!r.Finished()) yield();
 
   if (r.ResponseCode() == 200) { g_lastSentTime = best; g_status = "Envoye : " + best + "s"; }
