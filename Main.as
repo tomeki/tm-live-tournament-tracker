@@ -33,6 +33,19 @@
 //      temps identique ou non amélioré ne renvoyait plus jamais rien, sans le
 //      moindre changement de g_status pour le signaler. Garde retirée : le
 //      serveur fait déjà le tri (n'écrit que si le temps améliore la cellule).
+//
+// CORRIGE (2026-09-05, 3e essai réel - temps aberrant "PR toutes parties
+// confondues" envoyé avant même de démarrer une run) :
+//   me.BestTime n'est PAS le temps de la manche en cours : c'est le record
+//   personnel déjà existant sur cette piste, réaffiché par le jeu dès le
+//   chargement (avant toute run de la session), y compris après un rechargement
+//   de piste entre deux salons. TryIngest() ne mesurait donc jamais "le temps que
+//   je viens de faire", juste "mon record historique sur cette piste". Remplacé
+//   par une vraie détection de ligne d'arrivée : CpCount (nombre de points de
+//   passage validés) atteint CPsToFinish (nombre total requis pour finir, doc
+//   MLFeed) - à cette transition précise, CurrentRaceTime est le temps réel de
+//   CETTE run. Non testable ici (aucun harnais AngelScript) - à confirmer par
+//   Thomas au prochain essai réel.
 
 string LocalAccountId() {
   auto net = GetApp().Network;
@@ -87,11 +100,15 @@ void TryPair() {
   g_status = "Appaire.";
 }
 
-// Pas de garde "valeur inchangee" ici : BestTime tient depuis le chargement de la
-// carte, un simple redemarrage de manche (meme piste, nouveau salon) peut renvoyer
-// la meme valeur - une garde en memoire bloquait alors tout renvoi. Le serveur fait
-// deja le tri (n'ecrit que si le temps ameliore la cellule), un POST/s inutile ne
-// coute rien de plus qu'avant.
+// Detection de ligne d'arrivee par piste : g_cpArmed ne passe a true qu'apres avoir
+// VU le joueur sous le seuil de fin (CpCount < CPsToFinish) au moins une fois sur
+// cette piste - sans ca, un plugin qui reprend la main alors que CpCount est deja
+// au max (joueur deja arrive avant que le plugin ne regarde) declencherait un faux
+// "juste fini". Remis a zero a chaque nouvelle piste (CurrentMapUid change).
+string g_cpMapUid = "";
+bool g_cpArmed = false;
+int g_lastCpCount = -1;
+
 void TryIngest() {
   if (Setting_Token == "") return;
   auto raceData = MLFeed::GetRaceData_V4();
@@ -100,25 +117,32 @@ void TryIngest() {
   auto me = raceData.GetPlayer_V4(LocalName());
   if (me is null) return;
 
-  // BestTime est deja en millisecondes (doc MLFeed : "int BestTime") - PAS des
-  // secondes. Le code precedent faisait `int(best * 1000.0)` en pensant convertir
-  // des secondes en ms, ce qui multipliait par 1000 une valeur deja en ms (bug reel
-  // trouve par Thomas : "Envoye : 18164s" au lieu de 18.164s).
-  int bestMs = me.BestTime;
-  if (bestMs <= 0) return;
-
   string mapUid = CurrentMapUid();
   if (mapUid == "") return;
+  if (mapUid != g_cpMapUid) { g_cpMapUid = mapUid; g_cpArmed = false; g_lastCpCount = -1; }
+
+  int cp = me.CpCount;
+  int toFinish = int(raceData.CPsToFinish);
+  bool justFinished = g_cpArmed && g_lastCpCount < toFinish && cp >= toFinish;
+  if (cp < toFinish) g_cpArmed = true;
+  g_lastCpCount = cp;
+  if (!justFinished) return;
+
+  // CurrentRaceTime : le chrono de course s'arrete au franchissement de la ligne
+  // (mecanique standard Trackmania) - la valeur lue ici, meme une seconde plus
+  // tard (boucle de TryIngest a 1 Hz), reste celle de cette run precise.
+  int raceMs = me.CurrentRaceTime;
+  if (raceMs <= 0) return;
 
   Json::Value req = Json::Object();
   req["token"] = Setting_Token;
   req["mapUid"] = mapUid;
-  req["timeMs"] = bestMs;
+  req["timeMs"] = raceMs;
 
   auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/ingest", Json::Write(req), "application/json");
   while (!r.Finished()) yield();
 
-  if (r.ResponseCode() == 200) { g_status = "Envoye : " + (bestMs / 1000.0) + "s"; }
+  if (r.ResponseCode() == 200) { g_status = "Envoye : " + (raceMs / 1000.0) + "s"; }
   else if (r.ResponseCode() == 401) { Setting_Token = ""; g_status = "Lien expire - re-appaire."; }
   else { g_status = "Erreur (" + r.ResponseCode() + ")"; }
 }
