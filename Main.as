@@ -52,6 +52,14 @@
 // indicatif de niveau (c'est bien un record historique qu'on veut ici). Envoyé
 // par TryAmbient(), route et donnée séparées de TryIngest() - jamais mélangé au
 // temps officiel d'une manche.
+//
+// CORRIGE (2026-09-05, 4e essai réel - échec de compilation) : même famille
+// d'erreur que le ternaire déjà corrigé plus haut ("Can't find unambiguous
+// implicit conversion") - CurrentMapName() (ajoutée pour "niveau indicatif")
+// utilisait un ternaire `cond ? MapInfo.Name : ""`, qui ne compile pas même
+// entre deux string. CurrentMapUid(), même patron, réécrite en if/else par
+// précaution (elle compilait jusque-là, mais rien ne garantit qu'elle
+// continuerait après ce correctif).
 
 string LocalAccountId() {
   auto net = GetApp().Network;
@@ -71,12 +79,14 @@ string LocalName() {
 
 string CurrentMapUid() {
   auto app = GetApp();
-  return (app.RootMap !is null && app.RootMap.MapInfo !is null) ? app.RootMap.MapInfo.MapUid : "";
+  if (app.RootMap is null || app.RootMap.MapInfo is null) return "";
+  return app.RootMap.MapInfo.MapUid;
 }
 
 string CurrentMapName() {
   auto app = GetApp();
-  return (app.RootMap !is null && app.RootMap.MapInfo !is null) ? app.RootMap.MapInfo.Name : "";
+  if (app.RootMap is null || app.RootMap.MapInfo is null) return "";
+  return app.RootMap.MapInfo.Name;
 }
 
 string g_status = "Inactif.";
