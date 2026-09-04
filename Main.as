@@ -3,7 +3,6 @@
 //
 // INCERTITUDES (§3.5, non testables ici - à vérifier au premier essai réel) :
 //   1. nom exact de la méthode MLFeed pour le joueur local
-//   2. nom exact de la propriété du meilleur temps total
 //   3. LocalUser.WebServicesUserId peut être vide en solo local pur
 //   4. syntaxe exacte Json::Object/Json::Write/Json::Parse
 //
@@ -20,6 +19,20 @@
 //     ne sait pas unifier un handle caste et le littéral null dans un ternaire.
 //     Réécrit en if/else, même patron que LocalAccountId() ci-dessous (qui,
 //     lui, compilait déjà).
+//
+// CORRIGE (2026-09-04, 2e essai réel - appairage OK, ingest silencieux) :
+//   2. me.BestTime est bien la bonne propriété (confirmé contre la doc officielle
+//      MLFeed, github.com/XertroV/tm-mlfeed-race-data/MLFeed.autodoc.md), mais
+//      c'est un `int` DEJA en millisecondes ("this player's best time this
+//      session") - le code multipliait par 1000 en pensant convertir des
+//      secondes, d'où un temps envoyé 1000x trop grand ("Envoye : 18164s" pour
+//      un temps réel de 18.164s). TryIngest() corrigé pour traiter BestTime
+//      comme des ms directement.
+//   - g_lastSentTime (garde "valeur inchangée") ne se réinitialisait jamais
+//      entre deux salons : un redémarrage de manche sur la même piste avec un
+//      temps identique ou non amélioré ne renvoyait plus jamais rien, sans le
+//      moindre changement de g_status pour le signaler. Garde retirée : le
+//      serveur fait déjà le tri (n'écrit que si le temps améliore la cellule).
 
 string LocalAccountId() {
   auto net = GetApp().Network;
@@ -74,9 +87,11 @@ void TryPair() {
   g_status = "Appaire.";
 }
 
-float g_lastSentTime = -1.0;   // en mémoire seulement - un redémarrage renvoie
-                                 // le PB courant, le serveur ne garde que le min
-
+// Pas de garde "valeur inchangee" ici : BestTime tient depuis le chargement de la
+// carte, un simple redemarrage de manche (meme piste, nouveau salon) peut renvoyer
+// la meme valeur - une garde en memoire bloquait alors tout renvoi. Le serveur fait
+// deja le tri (n'ecrit que si le temps ameliore la cellule), un POST/s inutile ne
+// coute rien de plus qu'avant.
 void TryIngest() {
   if (Setting_Token == "") return;
   auto raceData = MLFeed::GetRaceData_V4();
@@ -85,8 +100,12 @@ void TryIngest() {
   auto me = raceData.GetPlayer_V4(LocalName());
   if (me is null) return;
 
-  float best = me.BestTime;
-  if (best <= 0.0 || best == g_lastSentTime) return;
+  // BestTime est deja en millisecondes (doc MLFeed : "int BestTime") - PAS des
+  // secondes. Le code precedent faisait `int(best * 1000.0)` en pensant convertir
+  // des secondes en ms, ce qui multipliait par 1000 une valeur deja en ms (bug reel
+  // trouve par Thomas : "Envoye : 18164s" au lieu de 18.164s).
+  int bestMs = me.BestTime;
+  if (bestMs <= 0) return;
 
   string mapUid = CurrentMapUid();
   if (mapUid == "") return;
@@ -94,12 +113,12 @@ void TryIngest() {
   Json::Value req = Json::Object();
   req["token"] = Setting_Token;
   req["mapUid"] = mapUid;
-  req["timeMs"] = int(best * 1000.0);
+  req["timeMs"] = bestMs;
 
   auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/ingest", Json::Write(req), "application/json");
   while (!r.Finished()) yield();
 
-  if (r.ResponseCode() == 200) { g_lastSentTime = best; g_status = "Envoye : " + best + "s"; }
+  if (r.ResponseCode() == 200) { g_status = "Envoye : " + (bestMs / 1000.0) + "s"; }
   else if (r.ResponseCode() == 401) { Setting_Token = ""; g_status = "Lien expire - re-appaire."; }
   else { g_status = "Erreur (" + r.ResponseCode() + ")"; }
 }
