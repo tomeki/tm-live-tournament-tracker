@@ -6,6 +6,16 @@
 //   3. LocalUser.WebServicesUserId peut être vide en solo local pur
 //   4. syntaxe exacte Json::Object/Json::Write/Json::Parse
 //
+// INCERTITUDES (2026-09-05, sous-chantier 2 - "checkpoints + respawns", écrites
+// en pleine nuit sans Thomas disponible pour tester, non confirmées) :
+//   a. Json::Array()/.Add()/.Length/opIndex : confirmés contre la doc officielle
+//      openplanet.dev/docs/api/Json/Value (pas juste supposés), mais jamais
+//      exercés en conditions réelles ici.
+//   b. me.NbRespawnsRequested et me.CpTimes : noms de champs confirmés contre la
+//      doc MLFeed officielle, mais valeur/comportement réel non vérifié (même
+//      prudence que BestTime avant le 3e essai réel - un nom de champ correct ne
+//      garantit pas la sémantique attendue).
+//
 // CORRIGE (2026-09-04, premier essai réel de Thomas) :
 //   5/6. info.toml utilisait des clés à plat - la dépendance MLFeed n'était donc
 //        jamais réellement câblée ("No matching symbol 'MLFeed::GetRaceData_V4'"
@@ -178,6 +188,17 @@ void TryIngest() {
   req["token"] = Setting_Token;
   req["mapUid"] = mapUid;
   req["timeMs"] = raceMs;
+  // respawns + temps aux checkpoints de CETTE run (celle qui vient de finir) -
+  // champs optionnels cote serveur, ignores silencieusement si absents ou mal
+  // formes (compat avec un serveur plus ancien). CpTimes : array<int>@ AngelScript
+  // standard (Length/opIndex), pas du Json - converti en Json::Array() ici.
+  req["respawns"] = int(me.NbRespawnsRequested);
+  Json::Value cps = Json::Array();
+  auto cpArr = me.CpTimes;
+  if (cpArr !is null) {
+    for (uint i = 0; i < cpArr.Length; i++) cps.Add(cpArr[i]);
+  }
+  req["cpTimes"] = cps;
 
   auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/ingest", Json::Write(req), "application/json");
   while (!r.Finished()) yield();
