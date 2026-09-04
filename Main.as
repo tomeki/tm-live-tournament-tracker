@@ -46,6 +46,12 @@
 //   MLFeed) - à cette transition précise, CurrentRaceTime est le temps réel de
 //   CETTE run. Non testable ici (aucun harnais AngelScript) - à confirmer par
 //   Thomas au prochain essai réel.
+//
+// AJOUT (2026-09-05, "niveau indicatif" au roster) : me.BestTime, le champ
+// écarté ci-dessus pour l'envoi OFFICIEL, est exactement le bon champ pour un
+// indicatif de niveau (c'est bien un record historique qu'on veut ici). Envoyé
+// par TryAmbient(), route et donnée séparées de TryIngest() - jamais mélangé au
+// temps officiel d'une manche.
 
 string LocalAccountId() {
   auto net = GetApp().Network;
@@ -66,6 +72,11 @@ string LocalName() {
 string CurrentMapUid() {
   auto app = GetApp();
   return (app.RootMap !is null && app.RootMap.MapInfo !is null) ? app.RootMap.MapInfo.MapUid : "";
+}
+
+string CurrentMapName() {
+  auto app = GetApp();
+  return (app.RootMap !is null && app.RootMap.MapInfo !is null) ? app.RootMap.MapInfo.Name : "";
 }
 
 string g_status = "Inactif.";
@@ -147,10 +158,46 @@ void TryIngest() {
   else { g_status = "Erreur (" + r.ResponseCode() + ")"; }
 }
 
+// Signal indicatif ("niveau" du joueur sur la piste courante) - piste + record
+// deja existant (BestTime), independant de tout salon actif et jamais ecrit comme
+// temps officiel. Rate-limite cote plugin (~20s, boucle Main() a 1 Hz) - un filet
+// cote serveur existe aussi (AMBIENT_MIN_GAP_MS, server/trackmania.js).
+int g_ambientTicks = 0;
+const int AMBIENT_EVERY_TICKS = 20;
+
+void TryAmbient() {
+  if (Setting_Token == "") return;
+  g_ambientTicks++;
+  if (g_ambientTicks < AMBIENT_EVERY_TICKS) return;
+  g_ambientTicks = 0;
+
+  auto raceData = MLFeed::GetRaceData_V4();
+  if (raceData is null) return;
+  auto me = raceData.GetPlayer_V4(LocalName());
+  if (me is null) return;
+
+  int bestMs = me.BestTime;
+  if (bestMs <= 0) return;
+  string mapUid = CurrentMapUid();
+  if (mapUid == "") return;
+
+  Json::Value req = Json::Object();
+  req["token"] = Setting_Token;
+  req["mapUid"] = mapUid;
+  req["mapName"] = CurrentMapName();
+  req["bestMs"] = bestMs;
+
+  auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/ambient", Json::Write(req), "application/json");
+  while (!r.Finished()) yield();
+  // best-effort et silencieux : ne touche jamais g_status, reserve au flux
+  // officiel (TryIngest) pour ne pas noyer un vrai "Envoye"/"Erreur".
+}
+
 void Main() {
   while (true) {
     TryPair();
     TryIngest();
+    TryAmbient();
     sleep(1000);
   }
 }
