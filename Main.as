@@ -6,10 +6,20 @@
 //   2. nom exact de la propriété du meilleur temps total
 //   3. LocalUser.WebServicesUserId peut être vide en solo local pur
 //   4. syntaxe exacte Json::Object/Json::Write/Json::Parse
-//   5. syntaxe exacte de déclaration de dépendance dans info.toml
-//   6. schéma exact d'info.toml lui-même - certaines docs OpenPlanet montrent des tables
-//      [meta]/[script] plutôt que des clés à plat, et "version" pourrait devoir être une
-//      chaîne plutôt qu'un entier (non vérifié ici, à confirmer au premier essai réel)
+//
+// CORRIGE (2026-09-04, premier essai réel de Thomas) :
+//   5/6. info.toml utilisait des clés à plat - la dépendance MLFeed n'était donc
+//        jamais réellement câblée ("No matching symbol 'MLFeed::GetRaceData_V4'"
+//        alors que MLFeed était bien installé). Confirmé contre la doc officielle
+//        OpenPlanet (docs/reference/info-toml, docs/tutorials/plugin-dependencies) :
+//        le schéma exige des tables [meta]/[script], "dependencies" vit sous
+//        [script], "version" doit être une chaîne. info.toml corrigé en
+//        consequence.
+//   - Le ternaire `cond ? cast<Handle>(...) : null` ne compilait pas dans
+//     LocalName() ("Can't find unambiguous implicit conversion") - AngelScript
+//     ne sait pas unifier un handle caste et le littéral null dans un ternaire.
+//     Réécrit en if/else, même patron que LocalAccountId() ci-dessous (qui,
+//     lui, compilait déjà).
 
 string LocalAccountId() {
   auto net = GetApp().Network;
@@ -21,8 +31,10 @@ string LocalAccountId() {
 
 string LocalName() {
   auto net = GetApp().Network;
-  auto pg = (net !is null) ? cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground) : null;
-  return (pg !is null && pg.LocalUser !is null) ? pg.LocalUser.Name : "";
+  if (net is null) return "";
+  auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
+  if (pg is null || pg.LocalUser is null) return "";
+  return pg.LocalUser.Name;
 }
 
 string CurrentMapUid() {
