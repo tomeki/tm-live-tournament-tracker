@@ -249,7 +249,6 @@ int g_lastCpCount = -1;
 // Vrai des qu'un spawn reel a ete vu sur la carte courante (cf. TryIngest, garde
 // IsSpawned) - remis a false a chaque changement de carte.
 bool g_everSpawnedThisMap = false;
-string g_debugCp = "";
 
 // Signale "une nouvelle tentative vient de commencer" au salon CTM actif (compteur
 // de runs, cote serveur - cf. server/trackmania.js route /attempt). Best-effort et
@@ -326,12 +325,6 @@ void TryIngest() {
   // une tentative rien qu'en chargeant la carte (menu solo/fantomes avant le spawn).
   bool justStarted = (cp == 0 && g_lastCpCount != 0);
   if (cp < toFinish) g_cpArmed = true;
-  // Diagnostic (2026-09-05, retour Thomas : un 2e temps meilleur, jamais envoye,
-  // alors que l'indicatif - TryAmbient, qui ne depend pas de cette detection - se
-  // met bien a jour) : ligne SEPAREE de g_status pour ne jamais ecraser le dernier
-  // "Envoye"/"Erreur" reel. A regarder en live au prochain run pour voir si
-  // justFinished redevient bien true la 2e fois.
-  g_debugCp = "cp " + cp + "/" + toFinish + " arme=" + g_cpArmed + " precedent=" + g_lastCpCount;
   g_lastCpCount = cp;
   if (justStarted) SendAttemptStarted();
   if (!justFinished) return;
@@ -447,6 +440,5 @@ void Render() {
   // dedans, Ctrl+A puis Ctrl+C) plutot que du texte simple - evite de retaper les
   // messages d'erreur a la main pour me les transmettre.
   UI::InputText("##status", g_status, UI::InputTextFlags::ReadOnly);
-  UI::InputText("##debugCp", g_debugCp, UI::InputTextFlags::ReadOnly);
   UI::End();
 }
