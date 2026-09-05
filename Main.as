@@ -84,17 +84,33 @@
 // openplanet-spike-dossier.md §9) comme null hors playground (menu, chargement,
 // ecran de fin). L'appairage n'a rien a voir avec le fait d'etre en course : il
 // ne devrait pas dependre de cette restriction (retour Thomas, 2026-09-05 :
-// "Identite introuvable" tant qu'aucune carte n'etait chargee). Confirme contre
-// la doc officielle OpenPlanet (next.openplanet.dev/Game/CGameCtnApp) - non
-// teste en jeu par manque de harnais AngelScript, a confirmer par Thomas.
+// "Identite introuvable" tant qu'aucune carte n'etait chargee).
+//
+// Priorite au chemin Playground quand il existe : c'est celui deja PROUVE correct
+// par tous les appairages reussis precedents (en course). LocalPlayerInfo
+// (CGameCtnApp, confirme contre la doc officielle next.openplanet.dev/Game/
+// CGameCtnApp) sert de repli SEULEMENT hors playground - non teste en jeu par
+// manque de harnais AngelScript. Si "Appairage refuse (400)" persiste en menu,
+// le corps de la reponse (TryPair) dira si WebServicesUserId n'est pas un GUID
+// valide dans ce contexte.
+CGamePlayerInfo@ LocalPlayerInfoPlayground() {
+  auto net = GetApp().Network;
+  if (net is null) return null;
+  auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
+  if (pg is null) return null;
+  return pg.LocalUser;
+}
+
 string LocalAccountId() {
-  auto info = GetApp().LocalPlayerInfo;
+  auto info = LocalPlayerInfoPlayground();
+  if (info is null) info = GetApp().LocalPlayerInfo;
   if (info is null) return "";
   return info.WebServicesUserId;
 }
 
 string LocalName() {
-  auto info = GetApp().LocalPlayerInfo;
+  auto info = LocalPlayerInfoPlayground();
+  if (info is null) info = GetApp().LocalPlayerInfo;
   if (info is null) return "";
   return info.Name;
 }
@@ -144,7 +160,14 @@ void TryPair() {
   auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/pair", Json::Write(req), "application/json");
   while (!r.Finished()) yield();
 
-  if (r.ResponseCode() != 200) { g_status = "Appairage refuse (" + r.ResponseCode() + ")"; return; }
+  // Diagnostic (2026-09-05, retour Thomas : "Appairage refuse (400)" purement en menu,
+  // juste apres le passage a GetApp().LocalPlayerInfo pour lire l'identite hors course) :
+  // le serveur distingue 3 causes de 400 (AccountId invalide / Code inconnu ou expire /
+  // Compte introuvable, server/trackmania.js /pair) - le corps de la reponse dit
+  // laquelle, plutot que de deviner. accId affiche aussi : verifie que c'est bien un
+  // GUID complet (8-4-4-4-12 caracteres hexa), pas une valeur vide/tronquee/differente
+  // de celle lue via l'ancien chemin (Network.ClientManiaAppPlayground.LocalUser).
+  if (r.ResponseCode() != 200) { g_status = "Appairage refuse (" + r.ResponseCode() + ") " + r.String() + " | accId=" + accId; return; }
   Json::Value resp = Json::Parse(r.String());
   Setting_Token = string(resp["token"]);
   Setting_PairCode = "";
