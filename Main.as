@@ -78,6 +78,13 @@
 // GetApp().LocalPlayerInfo (CGameCtnApp, la classe de base, confirmé contre la
 // doc officielle next.openplanet.dev/Game/CGameCtnApp) - NON TESTÉ EN JEU, à
 // confirmer par Thomas (aucun harnais AngelScript ici).
+//
+// CORRIGE (2026-09-05, 6e essai réel - échec de compilation) : LocalPlayerInfo
+// est un `const CGamePlayerInfo@` (confirmé contre la doc), pas un `CGamePlayerInfo@`
+// simple - assigner une valeur const à une variable `auto` inférée non-const
+// ("Can't implicitly convert from 'CGamePlayerInfo@&' to 'CGamePlayerInfo&'")
+// ne compile pas. LocalPlayerInfoPlayground() déclarée en retour `const`, comme
+// les deux sources qu'elle unifie.
 
 // LocalPlayerInfo vit sur CGameCtnApp (la classe de base que GetApp() renvoie),
 // PAS sous Network.ClientManiaAppPlayground - qui, lui, est documente (spike
@@ -93,7 +100,7 @@
 // manque de harnais AngelScript. Si "Appairage refuse (400)" persiste en menu,
 // le corps de la reponse (TryPair) dira si WebServicesUserId n'est pas un GUID
 // valide dans ce contexte.
-CGamePlayerInfo@ LocalPlayerInfoPlayground() {
+const CGamePlayerInfo@ LocalPlayerInfoPlayground() {
   auto net = GetApp().Network;
   if (net is null) return null;
   auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
