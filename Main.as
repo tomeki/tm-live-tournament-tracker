@@ -267,10 +267,15 @@ void TryIngest() {
   if (justStarted) SendAttemptStarted();
   if (!justFinished) return;
 
-  // CurrentRaceTime : le chrono de course s'arrete au franchissement de la ligne
-  // (mecanique standard Trackmania) - la valeur lue ici, meme une seconde plus
-  // tard (boucle de TryIngest a 1 Hz), reste celle de cette run precise.
-  int raceMs = me.CurrentRaceTime;
+  // CORRIGE (2026-09-05, 8e essai reel - temps envoye systematiquement trop grand,
+  // ecart variable < 1s) : l'hypothese "CurrentRaceTime se fige a la ligne" etait
+  // fausse. Doc officielle MLFeed (XertroV/tm-mlfeed-race-data, MLFeed.autodoc.md) :
+  // CurrentRaceTime = "with latency taken into account" (chrono VIVANT, continue de
+  // tourner) ; LastCpTime = "player's last CP time as on their chronometer" (temps
+  // FIGE au dernier CP passe - a l'instant precis ou CpCount atteint CPsToFinish,
+  // c'est donc exactement le temps de cette run, contrairement a CurrentRaceTime lu
+  // jusqu'a 1s plus tard par le polling a 1 Hz de TryIngest).
+  int raceMs = me.LastCpTime;
   // Ce cas ne devrait pas arriver (le chrono est cense etre fige a l'arrivee) - mais un
   // retour muet ici laissait le widget afficher le dernier "Envoye : Xs" reussi, l'air
   // de dire que CE run venait d'etre envoye alors qu'il avait ete silencieusement ignore
