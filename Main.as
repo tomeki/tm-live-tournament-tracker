@@ -178,13 +178,16 @@ void TryPair() {
   string accId = LocalAccountId();
   if (accId == "") { g_status = "Identite introuvable - patiente ou relance Trackmania."; return; }
 
-  // Compteur de tentatives PAR CODE (2026-09-05, hypothese de Thomas : le plugin
-  // enverrait 2 requetes coup sur coup pour le meme code - la 1ere reussirait (l'app
-  // voit le lien), la 2e echouerait "code deja utilise", et c'est ce 2e statut,
-  // ecrasant le 1er, qui s'affiche). Si g_pairAttempts depasse 1 pour un code qui
-  // vient tout juste d'etre colle, la double requete est confirmee - sinon, cause
-  // reelle ailleurs (a chercher cote serveur/reseau).
+  // Compteur + GARDE "un seul essai par code" (2026-09-05, confirme par Thomas :
+  // "tentative #9 et ca continue de monter" sur un code deja mort - la boucle a 1Hz
+  // retentait indefiniment le MEME code, echouant a chaque fois puisque deja
+  // consomme/invalide - jamais de nouvelle valeur pour s'arreter tout seul). Un code
+  // n'est tente qu'UNE fois ; un nouveau code colle (valeur differente) redevient
+  // tentable normalement. La cause du tout premier echec (parfois ca marche du 1er
+  // coup, parfois pas - intermittent, cf. changelog) reste a elucider, mais spammer
+  // le serveur indefiniment avec un code deja mort n'a de toute facon aucun interet.
   if (Setting_PairCode != g_lastPairCodeTried) { g_lastPairCodeTried = Setting_PairCode; g_pairAttempts = 0; }
+  else if (g_pairAttempts > 0) return;
   g_pairAttempts++;
   int thisAttempt = g_pairAttempts;
 
