@@ -183,7 +183,12 @@ void TryPair() {
   // Peu importe la cause exacte cote disque : la valeur presente au tout premier
   // appel de TryPair() est traitee comme "deja tentee" d'office, silencieusement -
   // seul un code QUI CHANGE APRES coup (colle en jeu) est un ordre explicite reel.
-  if (!g_pairStartupSeen) { g_pairStartupSeen = true; g_lastPairCodeTried = Setting_PairCode; }
+  // BUG (2026-09-05) : la photo seule ne suffisait pas - g_pairAttempts demarrait a 0,
+  // donc la garde "else if (g_pairAttempts>0) return" plus bas ne se declenchait PAS
+  // au tout premier appel (0>0 est faux), laissant passer une tentative reelle malgre
+  // tout. g_pairAttempts=1 pose ICI directement (confirme par Thomas : le meme
+  // "Code inconnu ou expire" persistait malgre la photo).
+  if (!g_pairStartupSeen) { g_pairStartupSeen = true; g_lastPairCodeTried = Setting_PairCode; g_pairAttempts = 1; }
   if (Setting_ServerUrl == "" || Setting_PairCode == "") return;
   string accId = LocalAccountId();
   if (accId == "") { g_status = "Identite introuvable - patiente ou relance Trackmania."; return; }
