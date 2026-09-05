@@ -288,10 +288,13 @@ void TryIngest() {
 
   int cp = me.CpCount;
   int toFinish = int(raceData.CPsToFinish);
-  // course reellement en cours (pas encore finie, chrono demarre) : ping de
-  // progression - le rate-limit serveur (~1.5s, PROGRESS_MIN_GAP_MS) absorbe le
-  // fait que Main() tourne a 1Hz, plus vite que la cadence voulue.
-  if (cp < toFinish && me.CurrentRaceTime > 0) SendProgress(cp, toFinish, me.CurrentRaceTime);
+  // course en cours OU juste finie (retour Thomas 2026-09-05 : la barre n'affichait
+  // jamais 100% - <= au lieu de < continue de pinguer une fois l'arrivee franchie,
+  // tant que le joueur reste sur l'ecran de fin sans relancer. cp retombe a 0 des
+  // qu'une nouvelle tentative demarre, qui reprend alors le ping normalement.
+  // Le rate-limit serveur (~1.5s, PROGRESS_MIN_GAP_MS) absorbe le fait que Main()
+  // tourne a 1Hz, plus vite que la cadence voulue.
+  if (cp <= toFinish && me.CurrentRaceTime > 0) SendProgress(cp, toFinish, me.CurrentRaceTime);
   bool justFinished = g_cpArmed && g_lastCpCount < toFinish && cp >= toFinish;
   // "nouvelle tentative" (compteur de runs, 2026-09-05) : CpCount retombe a 0 -
   // couvre a la fois un redemarrage complet ET le tout premier passage a 0 juste
