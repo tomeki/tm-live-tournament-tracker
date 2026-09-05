@@ -330,6 +330,7 @@ void TryIngest() {
   Json::Value req = Json::Object();
   req["token"] = Setting_Token;
   req["mapUid"] = mapUid;
+  req["mapName"] = CurrentMapName();
   req["timeMs"] = raceMs;
   // respawns + temps aux checkpoints de CETTE run (celle qui vient de finir) -
   // champs optionnels cote serveur, ignores silencieusement si absents ou mal
