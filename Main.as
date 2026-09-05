@@ -288,6 +288,14 @@ void TryIngest() {
   if (mapUid == "") return;
   if (mapUid != g_cpMapUid) { g_cpMapUid = mapUid; g_cpArmed = false; g_lastCpCount = -1; }
 
+  // Pas encore reellement sur la piste (ex: menu "seul/avec fantomes" juste apres avoir
+  // charge la carte) : CpCount et CurrentRaceTime peuvent deja bouger avant le spawn reel
+  // - confirme par Thomas (chrono qui defile, statut "En course" alors qu'aucune tentative
+  // n'a commence). Doc officielle MLFeed : IsSpawned distingue precisement ce cas (spawn
+  // status NotSpawned/Spawning/Spawned). Sortir tot, AVANT de toucher g_lastCpCount, pour
+  // que la vraie transition "juste demarre" soit detectee au reel spawn, pas au chargement.
+  if (!me.IsSpawned) return;
+
   int cp = me.CpCount;
   int toFinish = int(raceData.CPsToFinish);
   // course en cours OU juste finie (retour Thomas 2026-09-05 : la barre n'affichait
@@ -302,9 +310,10 @@ void TryIngest() {
   // "nouvelle tentative" (compteur de runs, 2026-09-05) : CpCount retombe a 0 -
   // couvre a la fois un redemarrage complet ET le tout premier passage a 0 juste
   // apres un changement de piste (g_lastCpCount initialise a -1 ci-dessus).
-  // Approximatif par nature : compte aussi une "tentative" si le joueur charge la
-  // piste sans jamais rouler - assume, signale a Thomas des la conception (aucun
-  // signal MLFeed "abandon" n'existe).
+  // Approximatif par nature : compte aussi une "tentative" si le joueur spawn sur la
+  // piste sans jamais rouler - assume, signale a Thomas des la conception (aucun signal
+  // MLFeed "abandon" n'existe). Le garde IsSpawned ci-dessus evite au moins de compter
+  // une tentative rien qu'en chargeant la carte (menu solo/fantomes avant le spawn).
   bool justStarted = (cp == 0 && g_lastCpCount != 0);
   if (cp < toFinish) g_cpArmed = true;
   // Diagnostic (2026-09-05, retour Thomas : un 2e temps meilleur, jamais envoye,
