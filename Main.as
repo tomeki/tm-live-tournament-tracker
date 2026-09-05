@@ -182,7 +182,12 @@ void TryIngest() {
   // (mecanique standard Trackmania) - la valeur lue ici, meme une seconde plus
   // tard (boucle de TryIngest a 1 Hz), reste celle de cette run precise.
   int raceMs = me.CurrentRaceTime;
-  if (raceMs <= 0) return;
+  // Ce cas ne devrait pas arriver (le chrono est cense etre fige a l'arrivee) - mais un
+  // retour muet ici laissait le widget afficher le dernier "Envoye : Xs" reussi, l'air
+  // de dire que CE run venait d'etre envoye alors qu'il avait ete silencieusement ignore
+  // (retour Thomas, 2026-09-05 : record battu apres une pause, jamais transmis). Statut
+  // explicite le temps qu'on comprenne si/quand ce cas se produit vraiment.
+  if (raceMs <= 0) { g_status = "Run ignore (temps invalide) - non envoye."; return; }
 
   Json::Value req = Json::Object();
   req["token"] = Setting_Token;
