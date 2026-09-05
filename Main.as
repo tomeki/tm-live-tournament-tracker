@@ -70,21 +70,33 @@
 // entre deux string. CurrentMapUid(), même patron, réécrite en if/else par
 // précaution (elle compilait jusque-là, mais rien ne garantit qu'elle
 // continuerait après ce correctif).
+//
+// CORRIGE (2026-09-05, 5e essai réel - "Identité introuvable" hors course) :
+// LocalAccountId()/LocalName() lisaient Network.ClientManiaAppPlayground.LocalUser,
+// documenté (spike §9) comme null hors playground (menu, chargement) - or
+// l'appairage n'a rien à voir avec le fait d'être en course. Remplacé par
+// GetApp().LocalPlayerInfo (CGameCtnApp, la classe de base, confirmé contre la
+// doc officielle next.openplanet.dev/Game/CGameCtnApp) - NON TESTÉ EN JEU, à
+// confirmer par Thomas (aucun harnais AngelScript ici).
 
+// LocalPlayerInfo vit sur CGameCtnApp (la classe de base que GetApp() renvoie),
+// PAS sous Network.ClientManiaAppPlayground - qui, lui, est documente (spike
+// openplanet-spike-dossier.md §9) comme null hors playground (menu, chargement,
+// ecran de fin). L'appairage n'a rien a voir avec le fait d'etre en course : il
+// ne devrait pas dependre de cette restriction (retour Thomas, 2026-09-05 :
+// "Identite introuvable" tant qu'aucune carte n'etait chargee). Confirme contre
+// la doc officielle OpenPlanet (next.openplanet.dev/Game/CGameCtnApp) - non
+// teste en jeu par manque de harnais AngelScript, a confirmer par Thomas.
 string LocalAccountId() {
-  auto net = GetApp().Network;
-  if (net is null) return "";
-  auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
-  if (pg is null || pg.LocalUser is null) return "";
-  return pg.LocalUser.WebServicesUserId;
+  auto info = GetApp().LocalPlayerInfo;
+  if (info is null) return "";
+  return info.WebServicesUserId;
 }
 
 string LocalName() {
-  auto net = GetApp().Network;
-  if (net is null) return "";
-  auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
-  if (pg is null || pg.LocalUser is null) return "";
-  return pg.LocalUser.Name;
+  auto info = GetApp().LocalPlayerInfo;
+  if (info is null) return "";
+  return info.Name;
 }
 
 string CurrentMapUid() {
@@ -122,7 +134,7 @@ void TryPair() {
   // un nouveau (server/trackmania.js, /pair).
   if (Setting_ServerUrl == "" || Setting_PairCode == "") return;
   string accId = LocalAccountId();
-  if (accId == "") { g_status = "Identite introuvable - relance une carte."; return; }
+  if (accId == "") { g_status = "Identite introuvable - patiente ou relance Trackmania."; return; }
 
   Json::Value req = Json::Object();
   req["code"] = Setting_PairCode;
@@ -147,6 +159,7 @@ void TryPair() {
 string g_cpMapUid = "";
 bool g_cpArmed = false;
 int g_lastCpCount = -1;
+string g_debugCp = "";
 
 // Signale "une nouvelle tentative vient de commencer" au salon CTM actif (compteur
 // de runs, cote serveur - cf. server/trackmania.js route /attempt). Best-effort et
@@ -182,6 +195,12 @@ void TryIngest() {
   // signal MLFeed "abandon" n'existe).
   bool justStarted = (cp == 0 && g_lastCpCount != 0);
   if (cp < toFinish) g_cpArmed = true;
+  // Diagnostic (2026-09-05, retour Thomas : un 2e temps meilleur, jamais envoye,
+  // alors que l'indicatif - TryAmbient, qui ne depend pas de cette detection - se
+  // met bien a jour) : ligne SEPAREE de g_status pour ne jamais ecraser le dernier
+  // "Envoye"/"Erreur" reel. A regarder en live au prochain run pour voir si
+  // justFinished redevient bien true la 2e fois.
+  g_debugCp = "cp " + cp + "/" + toFinish + " arme=" + g_cpArmed + " precedent=" + g_lastCpCount;
   g_lastCpCount = cp;
   if (justStarted) SendAttemptStarted();
   if (!justFinished) return;
@@ -275,5 +294,6 @@ void Render() {
   if (!g_windowOpen) return;
   UI::Begin("Genesis Trackmania", g_windowOpen);
   UI::Text(g_status);
+  UI::Text(g_debugCp);
   UI::End();
 }
