@@ -246,6 +246,9 @@ void TryPair() {
 string g_cpMapUid = "";
 bool g_cpArmed = false;
 int g_lastCpCount = -1;
+// Vrai des qu'un spawn reel a ete vu sur la carte courante (cf. TryIngest, garde
+// IsSpawned) - remis a false a chaque changement de carte.
+bool g_everSpawnedThisMap = false;
 string g_debugCp = "";
 
 // Signale "une nouvelle tentative vient de commencer" au salon CTM actif (compteur
@@ -286,15 +289,22 @@ void TryIngest() {
 
   string mapUid = CurrentMapUid();
   if (mapUid == "") return;
-  if (mapUid != g_cpMapUid) { g_cpMapUid = mapUid; g_cpArmed = false; g_lastCpCount = -1; }
+  if (mapUid != g_cpMapUid) { g_cpMapUid = mapUid; g_cpArmed = false; g_lastCpCount = -1; g_everSpawnedThisMap = false; }
 
   // Pas encore reellement sur la piste (ex: menu "seul/avec fantomes" juste apres avoir
   // charge la carte) : CpCount et CurrentRaceTime peuvent deja bouger avant le spawn reel
   // - confirme par Thomas (chrono qui defile, statut "En course" alors qu'aucune tentative
   // n'a commence). Doc officielle MLFeed : IsSpawned distingue precisement ce cas (spawn
-  // status NotSpawned/Spawning/Spawned). Sortir tot, AVANT de toucher g_lastCpCount, pour
-  // que la vraie transition "juste demarre" soit detectee au reel spawn, pas au chargement.
-  if (!me.IsSpawned) return;
+  // status NotSpawned/Spawning/Spawned).
+  if (me.IsSpawned) g_everSpawnedThisMap = true;
+  // Le MEME menu "seul/avec fantomes" reapparait ENTRE deux tentatives (retour Thomas :
+  // le suivi live disparaissait a tort apres une run si on restait dessus) - IsSpawned y
+  // redevient faux la aussi. Ne bloquer que tant qu'AUCUN spawn reel n'a encore eu lieu
+  // sur cette carte (1er chargement) : une fois qu'on a vraiment couru, le suivi (fige au
+  // temps d'arrivee par ailleurs) doit rester visible meme si IsSpawned reflue en attendant
+  // la tentative suivante. Sortir tot, AVANT de toucher g_lastCpCount, pour que la vraie
+  // transition "juste demarre" soit detectee au reel spawn, pas au chargement.
+  if (!me.IsSpawned && !g_everSpawnedThisMap) return;
 
   int cp = me.CpCount;
   int toFinish = int(raceData.CPsToFinish);
