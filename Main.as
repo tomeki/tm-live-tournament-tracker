@@ -329,7 +329,19 @@ void TryIngest() {
 
   if (r.ResponseCode() == 200) { g_status = "Envoye : " + (raceMs / 1000.0) + "s"; }
   else if (r.ResponseCode() == 401) { Setting_Token = ""; Meta::SaveSettings(); g_status = "Lien expire - re-appaire."; }
-  else { g_status = "Erreur (" + r.ResponseCode() + ")"; }
+  else {
+    // Messages explicites (2026-09-05, retour Thomas : "Erreur (409)" generique qui
+    // revient sans arret n'est pas rassurant, meme quand c'est parfaitement normal -
+    // quota de runs ou minuteur ecoule, server/trackmania.js ctmAttemptsExhausted/
+    // ctmRunRejectedByTimer). Distingue le cas attendu d'une vraie erreur.
+    string reason = "";
+    Json::Value errBody = Json::Parse(r.String());
+    if (errBody !is null) reason = string(errBody["error"]);
+    if (reason == "attempts") g_status = "Quota de runs atteint - normal, ton meilleur temps est deja enregistre.";
+    else if (reason == "time_up") g_status = "Minuteur ecoule avant ce run - normal, il ne compte pas.";
+    else if (reason == "map") g_status = "Piste differente de celle verrouillee pour cette manche.";
+    else { g_status = "Erreur (" + r.ResponseCode() + ") " + r.String(); }
+  }
 }
 
 // Signal indicatif ("niveau" du joueur sur la piste courante) - piste + record
