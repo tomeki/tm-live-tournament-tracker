@@ -259,6 +259,21 @@ void SendAttemptStarted() {
   while (!r.Finished()) yield();
 }
 
+// Progression en direct (2026-09-05, demande Thomas) : ping best-effort et
+// silencieux (comme TryAmbient/SendAttemptStarted, jamais g_status) - CurrentRaceTime
+// EST le bon champ ici (contrairement au temps final, cf. TryIngest plus bas) : c'est
+// justement un chrono VIVANT qu'on veut, pas fige.
+void SendProgress(int cp, int toFinish, int raceMs) {
+  if (Setting_Token == "") return;
+  Json::Value req = Json::Object();
+  req["token"] = Setting_Token;
+  req["cp"] = cp;
+  req["cpTotal"] = toFinish;
+  req["raceMs"] = raceMs;
+  auto r = Net::HttpPost(ServerUrlTrimmed() + "/api/trackmania/progress", Json::Write(req), "application/json");
+  while (!r.Finished()) yield();
+}
+
 void TryIngest() {
   if (Setting_Token == "") return;
   auto raceData = MLFeed::GetRaceData_V4();
@@ -273,6 +288,10 @@ void TryIngest() {
 
   int cp = me.CpCount;
   int toFinish = int(raceData.CPsToFinish);
+  // course reellement en cours (pas encore finie, chrono demarre) : ping de
+  // progression - le rate-limit serveur (~1.5s, PROGRESS_MIN_GAP_MS) absorbe le
+  // fait que Main() tourne a 1Hz, plus vite que la cadence voulue.
+  if (cp < toFinish && me.CurrentRaceTime > 0) SendProgress(cp, toFinish, me.CurrentRaceTime);
   bool justFinished = g_cpArmed && g_lastCpCount < toFinish && cp >= toFinish;
   // "nouvelle tentative" (compteur de runs, 2026-09-05) : CpCount retombe a 0 -
   // couvre a la fois un redemarrage complet ET le tout premier passage a 0 juste
