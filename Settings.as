@@ -3,7 +3,7 @@
 // Spec : docs/superpowers/specs/2026-09-04-trackmania-plugin-aide-design.md §3.3
 
 [Setting category="Compte" name="Adresse du serveur"]
-string Setting_ServerUrl = "";
+string Setting_ServerUrl = "https://genesis-tournament.tbrissonnet.ovh";
 
 [Setting category="Compte" name="Code d'appairage"]
 string Setting_PairCode = "";
