@@ -340,7 +340,10 @@ void RenderMenu() {
 void Render() {
   if (!g_windowOpen) return;
   UI::Begin("Genesis Trackmania", g_windowOpen);
-  UI::Text(g_status);
-  UI::Text(g_debugCp);
+  // ReadOnly (2026-09-05, demande Thomas) : champ selectionnable/copiable (clic
+  // dedans, Ctrl+A puis Ctrl+C) plutot que du texte simple - evite de retaper les
+  // messages d'erreur a la main pour me les transmettre.
+  UI::InputText("##status", g_status, UI::InputTextFlags::ReadOnly);
+  UI::InputText("##debugCp", g_debugCp, UI::InputTextFlags::ReadOnly);
   UI::End();
 }
