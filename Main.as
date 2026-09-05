@@ -154,6 +154,7 @@ string CurrentMapName() {
 string g_status = "Inactif.";
 string g_lastPairCodeTried = "";
 int g_pairAttempts = 0;
+bool g_pairStartupSeen = false;
 
 // Retire un antislash final de l'adresse collee par le joueur : sans ca, une URL collee
 // avec un "/" en trop (copier-coller depuis un navigateur, par ex.) produit un double
@@ -174,6 +175,15 @@ void TryPair() {
   // terminee (retour Thomas, 2026-09-05 : "Verifier" muet + widget bloque "Inactif").
   // Reappairer avec un token deja valide est sans risque : le serveur en emet juste
   // un nouveau (server/trackmania.js, /pair).
+  // Photo de demarrage (2026-09-05, retour Thomas : "Code inconnu ou expire" au
+  // relancement, avec le DERNIER code ayant deja reussi) : OpenPlanet n'ecrit sur
+  // disque que les [Setting] non-defaut (doc officielle) - Setting_PairCode="" (son
+  // defaut, pose apres un appairage reussi) risque de ne jamais ecraser l'ancienne
+  // valeur non-vide deja sur le disque, qui revient donc au relancement suivant.
+  // Peu importe la cause exacte cote disque : la valeur presente au tout premier
+  // appel de TryPair() est traitee comme "deja tentee" d'office, silencieusement -
+  // seul un code QUI CHANGE APRES coup (colle en jeu) est un ordre explicite reel.
+  if (!g_pairStartupSeen) { g_pairStartupSeen = true; g_lastPairCodeTried = Setting_PairCode; }
   if (Setting_ServerUrl == "" || Setting_PairCode == "") return;
   string accId = LocalAccountId();
   if (accId == "") { g_status = "Identite introuvable - patiente ou relance Trackmania."; return; }
