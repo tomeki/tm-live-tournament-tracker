@@ -260,9 +260,11 @@ void SendAttemptStarted() {
 }
 
 // Progression en direct (2026-09-05, demande Thomas) : ping best-effort et
-// silencieux (comme TryAmbient/SendAttemptStarted, jamais g_status) - CurrentRaceTime
-// EST le bon champ ici (contrairement au temps final, cf. TryIngest plus bas) : c'est
-// justement un chrono VIVANT qu'on veut, pas fige.
+// silencieux (comme TryAmbient/SendAttemptStarted, jamais g_status). CurrentRaceTime
+// (chrono VIVANT) est correct PENDANT la course, mais continue de tourner apres la
+// ligne d'arrivee (doc MLFeed) - une fois cp>=toFinish il faut figer sur LastCpTime,
+// sinon la barre en direct continue de defiler apres l'arrivee tant que la run n'est
+// pas relancee (retour Thomas 2026-09-05). Choix fait par l'appelant (TryIngest).
 void SendProgress(int cp, int toFinish, int raceMs) {
   if (Setting_Token == "") return;
   Json::Value req = Json::Object();
@@ -294,7 +296,8 @@ void TryIngest() {
   // qu'une nouvelle tentative demarre, qui reprend alors le ping normalement.
   // Le rate-limit serveur (~1.5s, PROGRESS_MIN_GAP_MS) absorbe le fait que Main()
   // tourne a 1Hz, plus vite que la cadence voulue.
-  if (cp <= toFinish && me.CurrentRaceTime > 0) SendProgress(cp, toFinish, me.CurrentRaceTime);
+  int liveMs = (cp < toFinish) ? me.CurrentRaceTime : me.LastCpTime;
+  if (cp <= toFinish && liveMs > 0) SendProgress(cp, toFinish, liveMs);
   bool justFinished = g_cpArmed && g_lastCpCount < toFinish && cp >= toFinish;
   // "nouvelle tentative" (compteur de runs, 2026-09-05) : CpCount retombe a 0 -
   // couvre a la fois un redemarrage complet ET le tout premier passage a 0 juste
