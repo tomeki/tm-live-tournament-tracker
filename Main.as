@@ -108,30 +108,32 @@
 // manque de harnais AngelScript. Si "Appairage refuse (400)" persiste en menu,
 // le corps de la reponse (TryPair) dira si WebServicesUserId n'est pas un GUID
 // valide dans ce contexte.
-const CGamePlayerInfo@ LocalPlayerInfoPlayground() {
-  auto net = GetApp().Network;
-  if (net is null) return null;
-  auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
-  if (pg is null) return null;
-  return pg.LocalUser;
-}
-
-// Jamais de reassignation entre les deux sources (const-ness de chacune incertaine
-// et contradictoire d'un essai reel a l'autre, cf. changelog ci-dessus) - chaque
-// variable est affectee UNE SEULE fois depuis UNE SEULE source, quel que soit le
-// const qu'AngelScript lui infere ; lire une propriete (.WebServicesUserId/.Name)
-// reste toujours legal, const ou pas.
+// Pas de fonction partagee qui renvoie CGamePlayerInfo@ : nommer explicitement ce
+// type de retour est precisement ce qui a fait echouer les 2 essais precedents
+// (constness de CGamePlayerInfo contradictoire d'un essai reel a l'autre, methode
+// get_WebServicesUserId()/get_Name() elle-meme non-const malgre un retour const -
+// AngelScript refuse de l'appeler sur une reference const, cf. changelog ci-dessus).
+// Chaque chemin reste une suite d'expressions `auto` + acces direct, exactement le
+// style de l'ancien code deja PROUVE correct (tous les appairages reussis en
+// course) - jamais besoin de nommer le type, jamais de reassignation entre les
+// deux sources.
 string LocalAccountId() {
-  auto pgInfo = LocalPlayerInfoPlayground();
-  if (pgInfo !is null) return pgInfo.WebServicesUserId;
+  auto net = GetApp().Network;
+  if (net !is null) {
+    auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
+    if (pg !is null && pg.LocalUser !is null) return pg.LocalUser.WebServicesUserId;
+  }
   auto info = GetApp().LocalPlayerInfo;
   if (info is null) return "";
   return info.WebServicesUserId;
 }
 
 string LocalName() {
-  auto pgInfo = LocalPlayerInfoPlayground();
-  if (pgInfo !is null) return pgInfo.Name;
+  auto net = GetApp().Network;
+  if (net !is null) {
+    auto pg = cast<CGameManiaAppPlaygroundCommon>(net.ClientManiaAppPlayground);
+    if (pg !is null && pg.LocalUser !is null) return pg.LocalUser.Name;
+  }
   auto info = GetApp().LocalPlayerInfo;
   if (info is null) return "";
   return info.Name;
