@@ -85,6 +85,14 @@
 // ("Can't implicitly convert from 'CGamePlayerInfo@&' to 'CGamePlayerInfo&'")
 // ne compile pas. LocalPlayerInfoPlayground() déclarée en retour `const`, comme
 // les deux sources qu'elle unifie.
+//
+// CORRIGE (2026-09-05, 7e essai réel - échec de compilation) : le correctif
+// ci-dessus a inversé l'erreur ("Can't implicitly convert from 'CGamePlayerInfo@&'
+// to 'const CGamePlayerInfo&'" sur la RÉASSIGNATION `info = GetApp().LocalPlayerInfo`)
+// - la const-ness réelle de chaque source, contradictoire d'un essai à l'autre,
+// n'est pas fiable à deviner depuis la doc en ligne. Plus aucune réassignation
+// entre les deux sources : chaque variable est affectée UNE SEULE fois depuis
+// UNE SEULE source (voir LocalAccountId/LocalName plus bas).
 
 // LocalPlayerInfo vit sur CGameCtnApp (la classe de base que GetApp() renvoie),
 // PAS sous Network.ClientManiaAppPlayground - qui, lui, est documente (spike
@@ -108,16 +116,23 @@ const CGamePlayerInfo@ LocalPlayerInfoPlayground() {
   return pg.LocalUser;
 }
 
+// Jamais de reassignation entre les deux sources (const-ness de chacune incertaine
+// et contradictoire d'un essai reel a l'autre, cf. changelog ci-dessus) - chaque
+// variable est affectee UNE SEULE fois depuis UNE SEULE source, quel que soit le
+// const qu'AngelScript lui infere ; lire une propriete (.WebServicesUserId/.Name)
+// reste toujours legal, const ou pas.
 string LocalAccountId() {
-  auto info = LocalPlayerInfoPlayground();
-  if (info is null) info = GetApp().LocalPlayerInfo;
+  auto pgInfo = LocalPlayerInfoPlayground();
+  if (pgInfo !is null) return pgInfo.WebServicesUserId;
+  auto info = GetApp().LocalPlayerInfo;
   if (info is null) return "";
   return info.WebServicesUserId;
 }
 
 string LocalName() {
-  auto info = LocalPlayerInfoPlayground();
-  if (info is null) info = GetApp().LocalPlayerInfo;
+  auto pgInfo = LocalPlayerInfoPlayground();
+  if (pgInfo !is null) return pgInfo.Name;
+  auto info = GetApp().LocalPlayerInfo;
   if (info is null) return "";
   return info.Name;
 }
