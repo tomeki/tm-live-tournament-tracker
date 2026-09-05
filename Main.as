@@ -152,6 +152,8 @@ string CurrentMapName() {
 }
 
 string g_status = "Inactif.";
+string g_lastPairCodeTried = "";
+int g_pairAttempts = 0;
 
 // Retire un antislash final de l'adresse collee par le joueur : sans ca, une URL collee
 // avec un "/" en trop (copier-coller depuis un navigateur, par ex.) produit un double
@@ -176,6 +178,16 @@ void TryPair() {
   string accId = LocalAccountId();
   if (accId == "") { g_status = "Identite introuvable - patiente ou relance Trackmania."; return; }
 
+  // Compteur de tentatives PAR CODE (2026-09-05, hypothese de Thomas : le plugin
+  // enverrait 2 requetes coup sur coup pour le meme code - la 1ere reussirait (l'app
+  // voit le lien), la 2e echouerait "code deja utilise", et c'est ce 2e statut,
+  // ecrasant le 1er, qui s'affiche). Si g_pairAttempts depasse 1 pour un code qui
+  // vient tout juste d'etre colle, la double requete est confirmee - sinon, cause
+  // reelle ailleurs (a chercher cote serveur/reseau).
+  if (Setting_PairCode != g_lastPairCodeTried) { g_lastPairCodeTried = Setting_PairCode; g_pairAttempts = 0; }
+  g_pairAttempts++;
+  int thisAttempt = g_pairAttempts;
+
   Json::Value req = Json::Object();
   req["code"] = Setting_PairCode;
   req["accountId"] = accId;
@@ -191,11 +203,11 @@ void TryPair() {
   // laquelle, plutot que de deviner. accId affiche aussi : verifie que c'est bien un
   // GUID complet (8-4-4-4-12 caracteres hexa), pas une valeur vide/tronquee/differente
   // de celle lue via l'ancien chemin (Network.ClientManiaAppPlayground.LocalUser).
-  if (r.ResponseCode() != 200) { g_status = "Appairage refuse (" + r.ResponseCode() + ") " + r.String() + " | accId=" + accId; return; }
+  if (r.ResponseCode() != 200) { g_status = "Appairage refuse (" + r.ResponseCode() + ") tentative #" + thisAttempt + " " + r.String() + " | accId=" + accId; return; }
   Json::Value resp = Json::Parse(r.String());
   Setting_Token = string(resp["token"]);
   Setting_PairCode = "";
-  g_status = "Appaire.";
+  g_status = "Appaire (tentative #" + thisAttempt + ").";
 }
 
 // Detection de ligne d'arrivee par piste : g_cpArmed ne passe a true qu'apres avoir
