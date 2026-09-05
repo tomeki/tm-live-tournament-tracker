@@ -210,6 +210,16 @@ void TryPair() {
   Json::Value resp = Json::Parse(r.String());
   Setting_Token = string(resp["token"]);
   Setting_PairCode = "";
+  // Meta::SaveSettings() (2026-09-05, retour Thomas : "j'aimerais qu'a l'avenir
+  // l'appairage persiste") : OpenPlanet n'ecrit les [Setting] sur disque qu'a des
+  // moments precis (fermeture du panneau reglages, rechargement du plugin) - PAS
+  // a chaque affectation depuis le script (doc officielle, tutoriel "Plugin
+  // settings"). Sans cet appel explicite, fermer completement le jeu SANS passer
+  // par un de ces declencheurs perdait le token fraichement obtenu ET le code
+  // efface, revenant a un ancien code perime sauvegarde bien plus tot -
+  // exactement le symptome observe ("Code inconnu ou expire" au relancement,
+  // alors qu'aucun nouvel appairage n'avait ete demande).
+  Meta::SaveSettings();
   g_status = "Appaire (tentative #" + thisAttempt + ").";
 }
 
@@ -303,16 +313,17 @@ void TryIngest() {
   while (!r.Finished()) yield();
 
   if (r.ResponseCode() == 200) { g_status = "Envoye : " + (raceMs / 1000.0) + "s"; }
-  else if (r.ResponseCode() == 401) { Setting_Token = ""; g_status = "Lien expire - re-appaire."; }
+  else if (r.ResponseCode() == 401) { Setting_Token = ""; Meta::SaveSettings(); g_status = "Lien expire - re-appaire."; }
   else { g_status = "Erreur (" + r.ResponseCode() + ")"; }
 }
 
 // Signal indicatif ("niveau" du joueur sur la piste courante) - piste + record
 // deja existant (BestTime), independant de tout salon actif et jamais ecrit comme
-// temps officiel. Rate-limite cote plugin (~20s, boucle Main() a 1 Hz) - un filet
-// cote serveur existe aussi (AMBIENT_MIN_GAP_MS, server/trackmania.js).
+// temps officiel. Rate-limite cote plugin (~10s, boucle Main() a 1 Hz, demande
+// Thomas 2026-09-05 - reduit de 20s) - un filet cote serveur existe aussi
+// (AMBIENT_MIN_GAP_MS=5s, server/trackmania.js, marge de 2x conservee).
 int g_ambientTicks = 0;
-const int AMBIENT_EVERY_TICKS = 20;
+const int AMBIENT_EVERY_TICKS = 10;
 
 void TryAmbient() {
   if (Setting_Token == "") return;
