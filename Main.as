@@ -112,7 +112,15 @@ string ServerUrlTrimmed() {
 }
 
 void TryPair() {
-  if (Setting_Token != "" || Setting_ServerUrl == "" || Setting_PairCode == "") return;
+  // Un code colle est un ordre EXPLICITE de (re)appairer - ne jamais l'ignorer sous
+  // pretexte qu'un token local existe deja : ce token peut etre perime cote serveur
+  // (bac reinitialise, compte delie...) sans que le plugin ne le sache avant d'avoir
+  // fini une course (le seul chemin qui decouvre un 401). Sans ce correctif, coller
+  // un nouveau code ne faisait rigoureusement rien tant qu'aucune course n'etait
+  // terminee (retour Thomas, 2026-09-05 : "Verifier" muet + widget bloque "Inactif").
+  // Reappairer avec un token deja valide est sans risque : le serveur en emet juste
+  // un nouveau (server/trackmania.js, /pair).
+  if (Setting_ServerUrl == "" || Setting_PairCode == "") return;
   string accId = LocalAccountId();
   if (accId == "") { g_status = "Identite introuvable - relance une carte."; return; }
 
