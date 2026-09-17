@@ -55,14 +55,32 @@ bool g_pairRequested = false;
 
 void RequestPairing() { g_pairRequested = true; }
 
+// Pairing codes are single-use server-side (deleted as soon as a /pair call
+// succeeds), so replaying the same code a second time always fails with
+// "unknown or expired" - harmless, but worth silencing. onchange can fire
+// more than once for what the player perceives as a single edit (e.g. an
+// OpenPlanet text field re-committing its still-visible buffer after this
+// script clears the setting), so track the last code actually sent and
+// ignore a repeat. Snapshotted from the persisted value on the first Main()
+// tick, not at declaration - global initializers run before OpenPlanet
+// applies settings loaded from disk - so a value merely reloaded from disk
+// at startup isn't treated as a fresh edit either.
+string g_lastPairCodeSent = "";
+bool g_pairStartupSeen = false;
+
 void TryPair() {
+  if (!g_pairStartupSeen) { g_pairStartupSeen = true; g_lastPairCodeSent = Setting_PairCode; }
   if (!g_pairRequested) return;
-  if (Setting_ServerUrl == "" || Setting_PairCode == "") { g_pairRequested = false; return; }
+  if (Setting_ServerUrl == "" || Setting_PairCode == "" || Setting_PairCode == g_lastPairCodeSent) {
+    g_pairRequested = false;
+    return;
+  }
 
   string accId = LocalAccountId();
   // Keep the flag set and retry every tick until an identity is available
   // (e.g. no map loaded yet) - no HTTP call happens until then.
   if (accId == "") { g_status = "Identity not found - wait for a map to load or restart Trackmania."; return; }
+  g_lastPairCodeSent = Setting_PairCode;
   g_pairRequested = false;
 
   Json::Value req = Json::Object();
