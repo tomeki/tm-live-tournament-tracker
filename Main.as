@@ -1,4 +1,4 @@
-// Genesis Trackmania plugin - reports the local player's Time Attack results
+// Live Tournament Tracker plugin - reports the local player's Time Attack results
 // to the Genesis Tournament server.
 
 // Prefer the playground path: proven correct while racing. LocalPlayerInfo
@@ -260,12 +260,12 @@ void Main() {
 bool g_windowOpen = false;
 
 void RenderMenu() {
-  if (UI::MenuItem("Genesis Trackmania", "", g_windowOpen)) g_windowOpen = !g_windowOpen;
+  if (UI::MenuItem("Live Tournament Tracker", "", g_windowOpen)) g_windowOpen = !g_windowOpen;
 }
 
 void Render() {
   if (!g_windowOpen) return;
-  UI::Begin("Genesis Trackmania", g_windowOpen);
+  UI::Begin("Live Tournament Tracker", g_windowOpen);
   // ReadOnly, not plain text: the field stays selectable/copyable (click,
   // Ctrl+A, Ctrl+C) so an error message can be copied instead of retyped.
   UI::InputText("##status", g_status, UI::InputTextFlags::ReadOnly);
