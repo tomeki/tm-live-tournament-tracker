@@ -1,10 +1,10 @@
 // Persistent plugin settings. OpenPlanet keeps them across sessions and
 // renders the settings panel itself - no UI code needed here.
 
-[Setting category="Compte" name="Adresse du serveur"]
+[Setting category="Account" name="Server address"]
 string Setting_ServerUrl = "https://genesis-tournament.tbrissonnet.ovh";
 
-[Setting category="Compte" name="Code d'appairage" onchange="OnPairCodeChanged"]
+[Setting category="Account" name="Pairing code" onchange="OnPairCodeChanged"]
 string Setting_PairCode = "";
 
 // Hidden: this is a secret token, never shown to the user, logged, or echoed

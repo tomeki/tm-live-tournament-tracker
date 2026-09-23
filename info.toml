@@ -1,8 +1,8 @@
 [meta]
 name = "Genesis Trackmania"
-author = "Genesis Tournament"
-version = "1.0"
-description = "Envoie automatiquement ton meilleur temps Contre-la-montre vers Genesis Tournament."
+author = "tomeki"
+version = "1.1"
+description = "Automatically sends your Time Attack results to Genesis Tournament. Once paired, it sends to the configured server: your Ubisoft account ID and display name (at pairing), the map UID and name, finish times with checkpoint splits and respawn count, live race progress (checkpoint count and current time), a signal when you start a new attempt and your personal best on the current map. Nothing is sent before you pair."
 
 [script]
 dependencies = ["MLFeedRaceData"]
