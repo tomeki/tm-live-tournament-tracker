@@ -24,7 +24,7 @@ An [Openplanet](https://openplanet.dev) plugin for Trackmania that reports your 
 
 Nothing is sent before pairing. Once paired, the plugin sends to the configured server only:
 
-- at pairing: your Ubisoft account ID and display name;
+- at pairing: an Openplanet authentication token, which the server checks with Openplanet to get your verified account ID and display name (the plugin never handles your password or any long-lived credential);
 - the map UID and name;
 - finish times, checkpoint splits and respawn count;
 - live race progress (checkpoint count and current time) and a signal when a new attempt starts;

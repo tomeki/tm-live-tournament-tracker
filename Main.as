@@ -83,8 +83,16 @@ void TryPair() {
   g_lastPairCodeSent = Setting_PairCode;
   g_pairRequested = false;
 
+  // Openplanet-verified identity: a short-lived (~5 min) token the server checks
+  // with openplanet.dev. A server that requires it ignores accountId/name below,
+  // which are only kept for servers that don't (e.g. a local test server).
+  g_status = "Pairing...";
+  auto tokenTask = Auth::GetToken();
+  while (!tokenTask.Finished()) yield();
+
   Json::Value req = Json::Object();
   req["code"] = Setting_PairCode;
+  req["opToken"] = tokenTask.Token();
   req["accountId"] = accId;
   req["name"] = LocalName();
 
